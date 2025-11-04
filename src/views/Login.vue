@@ -60,6 +60,11 @@
         <button class="diagnostic-btn" @click="runNetworkDiagnostic" type="button">
           🔍 网络诊断
         </button>
+        
+        <!-- 离线模式按钮 -->
+        <button class="offline-btn" @click="enableOfflineMode" type="button">
+          🔄 启用离线模式
+        </button>
       </div>
     </div>
   </div>
@@ -127,15 +132,45 @@ export default {
     
     async runNetworkDiagnostic() {
       try {
-        const { NetworkDiagnostics } = await import('@/utils/network-diagnostics.js');
-        const { API_CONFIG } = await import('@/config/api-config.js');
+        const { SimpleNetworkTest } = await import('@/utils/simple-network-test.js');
         
         alert('开始网络诊断，请稍候...');
         
-        const results = await NetworkDiagnostics.testConnection(API_CONFIG.BASE_URL);
-        await NetworkDiagnostics.displayResults(results);
+        const results = await SimpleNetworkTest.testBasicConnection();
+        SimpleNetworkTest.displayResults(results);
       } catch (error) {
         alert('网络诊断失败：' + error.message);
+      }
+    },
+    
+    async enableOfflineMode() {
+      try {
+        const { OfflineMode } = await import('@/utils/offline-mode.js');
+        
+        if (confirm('启用离线模式？\n\n离线模式下：\n✅ 可以正常使用基本功能\n❌ AI功能将不可用\n\n确定启用吗？')) {
+          OfflineMode.enable();
+          OfflineMode.showOfflineNotice();
+          
+          // 尝试离线登录
+          if (this.loginForm.phone && this.loginForm.password) {
+            try {
+              const result = OfflineMode.mockLogin(this.loginForm.phone, this.loginForm.password);
+              
+              // 保存登录状态
+              localStorage.setItem('userToken', result.data.token);
+              localStorage.setItem('userInfo', JSON.stringify(result.data.user));
+              
+              alert('离线模式登录成功！');
+              this.$router.replace('/home');
+            } catch (error) {
+              alert('离线登录失败：' + error.message);
+            }
+          } else {
+            alert('离线模式已启用，请输入手机号和密码进行离线登录');
+          }
+        }
+      } catch (error) {
+        alert('启用离线模式失败：' + error.message);
       }
     }
   }
@@ -308,6 +343,23 @@ export default {
 
 .diagnostic-btn:hover {
   background: #138496;
+}
+
+.offline-btn {
+  width: 100%;
+  padding: 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.offline-btn:hover {
+  background: #5a6268;
 }
 </style>
 

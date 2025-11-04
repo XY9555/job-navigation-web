@@ -20,3 +20,5 @@ echo    2. 在解压目录中按住 Shift + 右键，选择"在此处打开命�
 echo    3. 运行: adb devices
 echo.
 pause
+
+

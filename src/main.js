@@ -31,25 +31,8 @@ app.use(Lazyload)
 // 设置离线处理
 OfflineHandler.setupOfflineHandling();
 
-// 在Capacitor环境中进行网络诊断
-if (window.Capacitor) {
-  // 等待应用完全加载后进行网络检查
-  setTimeout(async () => {
-    console.log('🔍 开始移动端网络诊断...');
-    const diagnostics = await networkChecker.diagnoseNetwork();
-    
-    if (!diagnostics.apiConnectivity.success) {
-      console.error('⚠️ 网络连接问题:', networkChecker.getErrorMessage(diagnostics));
-      
-      // 可以在这里显示用户友好的错误提示
-      if (window.showToast) {
-        window.showToast(networkChecker.getErrorMessage(diagnostics));
-      }
-    } else {
-      console.log('✅ 网络连接正常，可以正常使用应用');
-    }
-  }, 3000);
-}
+// 移除启动时的网络检查，允许应用正常启动
+console.log('📱 移动端应用已启动，跳过网络检查');
 
 app.mount('#app')
 

@@ -41,3 +41,5 @@ echo.
 echo 现在请在手机上打开您的APP，然后查看下方日志：
 echo ================================================
 adb logcat -s chromium:V SystemWebViewClient:V Console:V WebView:V
+
+

@@ -50,11 +50,39 @@ export const getApiBaseUrl = () => {
   return `http://localhost:${DEV_CONFIG.PORT}/api`;
 };
 
+// 备用API地址列表
+export const BACKUP_API_URLS = [
+  'https://job-navigation-api.onrender.com/api',
+  // 可以添加更多备用地址
+];
+
+// 测试API连接
+export const testApiConnection = async (apiUrl) => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(`${apiUrl}/health`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    console.error('API连接测试失败:', error);
+    return false;
+  }
+};
+
 // 导出配置
 export const API_CONFIG = {
   BASE_URL: getApiBaseUrl(),
-  TIMEOUT: 30000, // 30秒超时，给云端API更多时间
-  RETRY_ATTEMPTS: 3
+  TIMEOUT: 60000, // 60秒超时
+  RETRY_ATTEMPTS: 1
 };
 
 // 调试信息
@@ -100,16 +128,6 @@ if (typeof window !== 'undefined') {
     port: DEV_CONFIG.PORT
   }));
   
-  // 自动测试网络连接（仅在 Capacitor 环境中）
-  if (isCapacitor) {
-    setTimeout(() => {
-      testNetworkConnection().then(result => {
-        if (result.success) {
-          console.log('🎉 移动端网络连接正常');
-        } else {
-          console.error('⚠️ 移动端网络连接异常:', result.error);
-        }
-      });
-    }, 2000);
-  }
+  // 移除自动网络测试，避免阻塞应用启动
+  console.log('📱 API配置已加载，跳过自动网络测试');
 }

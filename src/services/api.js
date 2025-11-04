@@ -23,6 +23,16 @@ class ApiService {
 
   // 通用请求方法
   async request(endpoint, options = {}) {
+    // 在Capacitor环境中强制使用XMLHttpRequest
+    if (window.Capacitor) {
+      return this.requestWithXHR(endpoint, options);
+    }
+    
+    return this.requestStandard(endpoint, options);
+  }
+  
+  // 标准请求方法
+  async requestStandard(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       headers: this.getAuthHeaders(),
@@ -100,7 +110,7 @@ class ApiService {
       }
       
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        throw new Error('网络连接失败，请检查网络设置和服务器状态');
+        throw new Error('网络连接失败，请检查网络设置');
       }
       
       if (error.message.includes('CORS')) {
@@ -119,6 +129,65 @@ class ApiService {
       
       throw error;
     }
+  }
+  
+  // 专用XMLHttpRequest方法（用于Capacitor）
+  async requestWithXHR(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    console.log('🔄 使用XMLHttpRequest请求:', url);
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.open(options.method || 'GET', url, true);
+      
+      // 设置请求头
+      const headers = this.getAuthHeaders();
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+      
+      xhr.timeout = 15000; // 15秒超时
+      
+      xhr.onload = function() {
+        console.log('📡 XHR响应:', {
+          status: xhr.status,
+          statusText: xhr.statusText,
+          response: xhr.responseText.substring(0, 200)
+        });
+        
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            console.log('✅ XHR请求成功:', data);
+            resolve(data);
+          } catch (parseError) {
+            console.error('JSON解析失败:', parseError);
+            reject(new Error('服务器响应格式错误'));
+          }
+        } else {
+          reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+        }
+      };
+      
+      xhr.onerror = function() {
+        console.error('❌ XHR网络错误');
+        reject(new Error('网络连接失败'));
+      };
+      
+      xhr.ontimeout = function() {
+        console.error('⏰ XHR请求超时');
+        reject(new Error('请求超时'));
+      };
+      
+      // 发送请求
+      if (options.body) {
+        xhr.send(JSON.stringify(options.body));
+      } else {
+        xhr.send();
+      }
+    });
   }
 
   // GET请求
