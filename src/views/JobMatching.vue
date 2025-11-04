@@ -1,0 +1,1377 @@
+<template>
+  <div class="job-matching-container">
+    <div class="header">
+      <button class="back-btn" @click="goBack">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="page-title">职位匹配分析</h1>
+    </div>
+    
+    <div class="content">
+      <!-- 职位名称输入 -->
+      <div class="section">
+        <div class="input-row">
+          <label class="input-label">职位名称</label>
+          <input 
+            type="text" 
+            v-model="jobInfo.title" 
+            placeholder="请输入职位名称" 
+            class="job-input"
+          />
+        </div>
+      </div>
+      
+      <!-- 职位描述输入 -->
+      <div class="section">
+        <textarea 
+          v-model="jobInfo.description" 
+          placeholder="请输入职位描述" 
+          class="job-textarea"
+        ></textarea>
+      </div>
+      
+      <!-- 选择简历 -->
+      <div class="section">
+        <div class="select-header">
+          <span class="select-label">
+            选择已有简历
+            <span v-if="evaluationMode === 'select'" class="mode-badge active">已选择</span>
+            <span v-else-if="evaluationMode === 'upload'" class="mode-badge disabled">已禁用</span>
+          </span>
+          <div class="select-dropdown">
+            <select 
+              v-model="selectedResume" 
+              class="resume-select"
+              :disabled="evaluationMode === 'upload'"
+              @change="selectResume(selectedResume)"
+            >
+              <option value="">请选择简历</option>
+              <option v-for="resume in resumeList" :key="resume.id" :value="resume.id">
+                {{ resume.title }}
+              </option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- 选中的简历预览 -->
+        <div v-if="selectedResumeData" class="selected-resume-card">
+          <div class="resume-header">
+            <div class="resume-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="resume-title">{{ selectedResumeData.title }}</div>
+          </div>
+          
+          <div class="resume-info">
+            <div class="info-row">
+              <span class="label">{{ getResumeName(selectedResumeData) }}</span>
+              <span class="value">{{ getResumeGenderAge(selectedResumeData) }}</span>
+            </div>
+            <div class="info-row" v-if="getResumePhone(selectedResumeData)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <span class="value">{{ getResumePhone(selectedResumeData) }}</span>
+            </div>
+            <div class="info-row" v-if="getResumeEmail(selectedResumeData)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2"/>
+                <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <span class="value">{{ getResumeEmail(selectedResumeData) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 上传简历 -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">
+            上传新简历
+            <span v-if="evaluationMode === 'upload'" class="mode-badge active">已选择</span>
+            <span v-else-if="evaluationMode === 'select'" class="mode-badge disabled">已禁用</span>
+          </span>
+        </div>
+        
+        <div 
+          class="upload-card" 
+          :class="{ disabled: evaluationMode === 'select' }"
+          @click="evaluationMode !== 'select' ? triggerUpload() : null"
+        >
+          <input 
+            type="file" 
+            ref="fileInput" 
+            @change="handleFileUpload" 
+            accept=".pdf,.doc,.docx" 
+            style="display: none;"
+          />
+          <div class="upload-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="upload-content">
+            <div class="upload-title">
+              {{ evaluationMode === 'select' ? '已选择简历，上传功能已禁用' : '上传简历文件' }}
+            </div>
+            <div class="upload-desc">
+              {{ evaluationMode === 'select' ? '请先清空选择的简历' : '支持PDF、Word文档' }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- 上传的文件 -->
+        <div v-if="uploadedFile" class="uploaded-file">
+          <div class="file-icon">📄</div>
+          <div class="file-info">
+            <div class="file-name">{{ uploadedFile.name }}</div>
+            <div class="file-size">{{ formatFileSize(uploadedFile.size) }}</div>
+          </div>
+          <button class="remove-btn" @click="removeFile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- 解析内容显示 -->
+        <div v-if="parsedContent" class="parsed-content-section">
+          <h4 class="parsed-title">📄 解析出的文档内容</h4>
+
+          <!-- 原始文本内容 -->
+          <div class="parsed-text-container">
+            <label class="parsed-label">原始文本内容：</label>
+            <textarea 
+              v-model="parsedContent.rawText" 
+              class="parsed-text-area" 
+              readonly
+              rows="6"
+              placeholder="解析出的文档内容将显示在这里..."
+            ></textarea>
+          </div>
+          
+          <!-- 结构化信息 -->
+          <div class="parsed-info-grid">
+            <div class="info-card" v-if="parsedContent.personalInfo && Object.values(parsedContent.personalInfo).some(v => v)">
+              <h5>👤 个人信息</h5>
+              <div class="info-content">
+                <p v-if="parsedContent.personalInfo.name"><strong>姓名：</strong>{{ parsedContent.personalInfo.name }}</p>
+                <p v-if="parsedContent.personalInfo.phone"><strong>电话：</strong>{{ parsedContent.personalInfo.phone }}</p>
+                <p v-if="parsedContent.personalInfo.email"><strong>邮箱：</strong>{{ parsedContent.personalInfo.email }}</p>
+              </div>
+            </div>
+            
+            <div class="info-card" v-if="parsedContent.skills && parsedContent.skills.length > 0">
+              <h5>🛠️ 技能 ({{ parsedContent.skills.length }}项)</h5>
+              <div class="info-content">
+                <div class="skills-list">
+                  <span v-for="skill in parsedContent.skills.slice(0, 6)" :key="skill.name" class="skill-tag">
+                    {{ skill.name }}
+                  </span>
+                  <span v-if="parsedContent.skills.length > 6" class="more-skills">
+                    +{{ parsedContent.skills.length - 6 }}项
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="info-card" v-if="parsedContent.experience && parsedContent.experience.length > 0">
+              <h5>💼 工作经历 ({{ parsedContent.experience.length }}条)</h5>
+              <div class="info-content">
+                <p v-for="exp in parsedContent.experience.slice(0, 2)" :key="exp.company">
+                  <strong>{{ exp.company }}</strong> - {{ exp.position }}
+                </p>
+                <p v-if="parsedContent.experience.length > 2" class="more-items">
+                  +{{ parsedContent.experience.length - 2 }}条经历
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 当前选择状态显示 -->
+      <div v-if="evaluationMode" class="current-selection">
+        <div class="selection-info">
+          <div class="selection-icon">
+            {{ evaluationMode === 'select' ? '📋' : '📁' }}
+          </div>
+          <div class="selection-details">
+            <div class="selection-title">
+              {{ evaluationMode === 'select' ? '已选择简历' : '已上传文件' }}
+            </div>
+            <div class="selection-name">
+              {{ evaluationMode === 'select' ? selectedResumeData?.title : uploadedFile?.name }}
+            </div>
+          </div>
+          <button class="reset-btn" @click="resetSelection" title="重新选择">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2"/>
+              <path d="M3 3v5h5" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 分析提示 -->
+      <div v-if="!canAnalyze && !loading" class="analysis-hint">
+        <div class="hint-icon">💡</div>
+        <div class="hint-text">
+          <div v-if="!jobInfo.title.trim() || !jobInfo.description.trim()">
+            请填写完整的职位信息（职位名称和职位描述）
+          </div>
+          <div v-else-if="!evaluationMode">
+            请选择一种分析方式：选择已有简历或上传新文件
+          </div>
+        </div>
+      </div>
+      
+      <!-- 开始分析按钮 -->
+      <button class="analysis-btn" @click="startAnalysis" :disabled="!canAnalyze || loading">
+        <span v-if="loading" class="spinner"></span>
+        {{ analysisButtonText }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'JobMatching',
+  data() {
+    return {
+      loading: false,
+      loadingResumes: true,
+      selectedResume: '',
+      uploadedFile: null,
+      parsedContent: null, // 存储解析出的内容
+      evaluationMode: '', // 'select' 或 'upload'，用于控制选择模式
+      jobInfo: {
+        title: '',
+        description: ''
+      },
+      resumeList: []
+    }
+  },
+  
+  computed: {
+    canAnalyze() {
+      const hasJobInfo = this.jobInfo.title.trim() && this.jobInfo.description.trim();
+      const hasValidSelection = (this.evaluationMode === 'select' && this.selectedResume) || 
+                               (this.evaluationMode === 'upload' && this.uploadedFile);
+      return hasJobInfo && hasValidSelection;
+    },
+    
+    selectedResumeData() {
+      if (!this.selectedResume || this.selectedResume === '' || this.evaluationMode !== 'select') return null
+      return this.resumeList.find(resume => resume.id == this.selectedResume)
+    },
+    
+    analysisButtonText() {
+      if (this.loading) return '分析中...';
+      if (this.evaluationMode === 'select') return '分析选中简历';
+      if (this.evaluationMode === 'upload') return '分析上传文件';
+      return '开始职位匹配分析';
+    }
+  },
+  
+  async mounted() {
+    await this.loadResumes()
+  },
+  
+  methods: {
+    goBack() {
+      this.$router.go(-1)
+    },
+    
+    async loadResumes() {
+      try {
+        this.loadingResumes = true
+        
+        // 检查是否有认证token
+        const token = localStorage.getItem('userToken')
+        
+        if (token) {
+          // 如果有token，尝试从API获取数据
+          try {
+            const { resumeAPI } = await import('@/services/api')
+            const response = await resumeAPI.getResumes()
+            
+            if (response.success && response.data) {
+              // 过滤掉评测结果和匹配分析记录，只显示普通简历
+              const allResumes = response.data
+              this.resumeList = allResumes.filter(resume => {
+                return !resume.evaluation && !resume.jobMatching
+              })
+              console.log('成功加载简历列表:', allResumes.length, '总记录,', this.resumeList.length, '份普通简历')
+              return
+            }
+          } catch (apiError) {
+            console.error('API调用失败:', apiError)
+          }
+        }
+        
+        // 如果没有token或API调用失败，显示空列表
+        console.log('无法加载简历数据，显示空列表')
+        this.resumeList = []
+        
+      } catch (error) {
+        console.error('加载简历列表失败:', error)
+        this.resumeList = []
+      } finally {
+        this.loadingResumes = false
+      }
+    },
+    
+    selectResume(resumeId) {
+      // 切换到选择简历模式
+      this.evaluationMode = 'select';
+      this.selectedResume = resumeId;
+      // 清空上传相关数据
+      this.uploadedFile = null;
+      this.parsedContent = null;
+      console.log('🎯 切换到选择简历模式，简历ID:', resumeId);
+    },
+    
+    triggerUpload() {
+      this.$refs.fileInput.click()
+    },
+    
+    handleFileUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      
+      // 检查文件类型
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+      if (!allowedTypes.includes(file.type)) {
+        alert('请上传PDF或Word文档')
+        return
+      }
+      
+      // 检查文件大小 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('文件大小不能超过 10MB')
+        return
+      }
+      
+      // 切换到上传文件模式
+      this.evaluationMode = 'upload';
+      this.uploadedFile = file;
+      // 清空选择相关数据
+      this.selectedResume = '';
+      this.parsedContent = null;
+      
+      console.log('📁 切换到上传文件模式，文件:', file.name);
+      
+      // 立即解析文件内容
+      this.parseUploadedFile(file)
+    },
+    
+    removeFile() {
+      // 清空上传模式
+      this.evaluationMode = '';
+      this.uploadedFile = null;
+      this.$refs.fileInput.value = '';
+      this.parsedContent = null;
+      console.log('🗑️ 清空上传文件，重置分析模式');
+    },
+    
+    resetSelection() {
+      // 重置所有选择
+      this.evaluationMode = '';
+      this.selectedResume = '';
+      this.uploadedFile = null;
+      this.parsedContent = null;
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
+      }
+      
+      // 清除localStorage中的相关数据，确保状态持久重置
+      localStorage.removeItem('currentMatchingResumeId');
+      localStorage.removeItem('matchingAnalysisData');
+      
+      console.log('🔄 重置所有选择，回到初始状态，已清除localStorage数据');
+    },
+    
+
+    
+    formatFileSize(size) {
+      if (size < 1024) {
+        return size + ' B'
+      } else if (size < 1024 * 1024) {
+        return (size / 1024).toFixed(1) + ' KB'
+      } else {
+        return (size / (1024 * 1024)).toFixed(1) + ' MB'
+      }
+    },
+    
+    getResumeName(resume) {
+      return resume?.personalInfo?.name || resume?.name || '未填写姓名'
+    },
+    
+    getResumeGenderAge(resume) {
+      const gender = resume?.personalInfo?.gender || resume?.gender || ''
+      const age = resume?.personalInfo?.age || resume?.age || ''
+      
+      if (gender && age) {
+        return `${gender} / ${age}岁`
+      } else if (gender) {
+        return gender
+      } else if (age) {
+        return `${age}岁`
+      }
+      return '未填写'
+    },
+    
+    getResumePhone(resume) {
+      return resume?.personalInfo?.phone || resume?.phone || ''
+    },
+    
+    getResumeEmail(resume) {
+      return resume?.personalInfo?.email || resume?.email || ''
+    },
+    
+    // 分析上传的简历文件
+    async analyzeUploadedResume(resumeData, jobDescription, jobTitle) {
+      // 模拟AI分析过程
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 基于简历内容进行智能分析
+      const analysis = this.performJobMatching(resumeData, jobDescription, jobTitle);
+      
+      return analysis;
+    },
+    
+    // 执行职位匹配分析
+    performJobMatching(resume, jobDescription, jobTitle) {
+      let matchingScore = 60; // 基础分
+      const strengths = [];
+      const gaps = [];
+      const suggestions = [];
+      const keywordMatches = [];
+      
+      // 分析技能匹配
+      const skills = resume.skills || [];
+      const jobDescLower = jobDescription.toLowerCase();
+      const jobTitleLower = jobTitle.toLowerCase();
+      
+      // 检查技能关键词匹配
+      const techKeywords = ['javascript', 'java', 'python', 'react', 'vue', 'node', 'html', 'css', 'sql', 'git'];
+      let skillMatches = 0;
+      
+      skills.forEach(skill => {
+        const skillName = skill.name?.toLowerCase() || '';
+        if (jobDescLower.includes(skillName) || jobTitleLower.includes(skillName)) {
+          matchingScore += 5;
+          skillMatches++;
+          keywordMatches.push(skill.name);
+        }
+        
+        // 检查是否是热门技术
+        if (techKeywords.includes(skillName)) {
+          matchingScore += 2;
+        }
+      });
+      
+      if (skillMatches > 0) {
+        strengths.push(`技能匹配度高，掌握${skillMatches}项相关技能`);
+      } else {
+        gaps.push('缺少职位要求的核心技能');
+        suggestions.push('建议学习职位描述中提到的技术栈');
+      }
+      
+      // 分析工作经验
+      const experience = resume.experience || [];
+      if (experience.length > 0) {
+        matchingScore += 10;
+        strengths.push(`具有${experience.length}段相关工作经验`);
+        
+        // 检查经验是否与职位相关
+        const hasRelevantExp = experience.some(exp => {
+          const position = exp.position?.toLowerCase() || '';
+          const company = exp.company?.toLowerCase() || '';
+          return jobTitleLower.includes(position) || 
+                 jobDescLower.includes(position) ||
+                 jobDescLower.includes(company);
+        });
+        
+        if (hasRelevantExp) {
+          matchingScore += 15;
+          strengths.push('工作经验与目标职位高度相关');
+        }
+      } else {
+        gaps.push('缺少相关工作经验');
+        suggestions.push('可以通过实习或项目经历来弥补经验不足');
+      }
+      
+      // 分析教育背景
+      const education = resume.education || [];
+      if (education.length > 0) {
+        matchingScore += 5;
+        
+        const hasRelevantEducation = education.some(edu => {
+          const major = edu.major?.toLowerCase() || '';
+          return major.includes('计算机') || major.includes('软件') || 
+                 major.includes('信息') || major.includes('电子');
+        });
+        
+        if (hasRelevantEducation) {
+          matchingScore += 10;
+          strengths.push('教育背景与职位要求匹配');
+        }
+      }
+      
+      // 分析项目经历
+      const projects = resume.projects || [];
+      if (projects.length > 0) {
+        matchingScore += 8;
+        strengths.push(`具有${projects.length}个项目经验`);
+        
+        // 检查项目技术栈
+        const projectTechs = projects.flatMap(proj => proj.technologies || []);
+        const relevantTechs = projectTechs.filter(tech => 
+          jobDescLower.includes(tech.toLowerCase())
+        );
+        
+        if (relevantTechs.length > 0) {
+          matchingScore += 10;
+          strengths.push('项目经验使用了相关技术栈');
+          keywordMatches.push(...relevantTechs);
+        }
+      } else {
+        suggestions.push('建议添加相关项目经历来展示实际能力');
+      }
+      
+      // 确保分数在合理范围内
+      matchingScore = Math.min(Math.max(matchingScore, 40), 95);
+      
+      // 根据分数给出总体评价
+      if (matchingScore >= 85) {
+        strengths.unshift('整体匹配度很高，非常适合该职位');
+      } else if (matchingScore >= 70) {
+        strengths.unshift('整体匹配度良好，基本符合职位要求');
+      } else if (matchingScore >= 60) {
+        gaps.unshift('整体匹配度一般，需要进一步提升');
+      } else {
+        gaps.unshift('整体匹配度较低，建议加强相关技能');
+      }
+      
+      // 确保有基本的建议
+      if (suggestions.length === 0) {
+        suggestions.push('持续学习和提升专业技能');
+        suggestions.push('关注行业发展趋势');
+      }
+      
+      // 去重关键词匹配
+      const uniqueKeywords = [...new Set(keywordMatches)];
+      
+      return {
+        matchingScore,
+        strengths,
+        gaps,
+        suggestions,
+        keywordMatches: uniqueKeywords,
+        analysis: {
+          skillsMatch: skillMatches,
+          experienceCount: experience.length,
+          projectCount: projects.length,
+          educationRelevant: education.some(edu => 
+            edu.major?.toLowerCase().includes('计算机') || 
+            edu.major?.toLowerCase().includes('软件')
+          )
+        }
+      };
+    },
+    
+    // 解析上传的文件
+    async parseUploadedFile(file) {
+      console.log('🔍 开始解析上传的文件:', file.name)
+      
+      // 先显示解析中状态
+      this.parsedContent = {
+        rawText: `正在解析文件，请稍候...
+
+文件名: ${file.name}
+文件大小: ${this.formatFileSize(file.size)}
+文件类型: ${file.type}
+解析状态: 进行中...`,
+        personalInfo: {
+          name: '解析中...',
+          phone: '',
+          email: ''
+        },
+        skills: [],
+        experience: [],
+        education: [],
+        parseMethod: 'parsing'
+      }
+      
+      try {
+        const { aiAPI } = await import('@/services/api')
+        const result = await aiAPI.parseFile(file)
+        
+        console.log('📄 文件解析完成:', result)
+        
+        if (result.data && result.data.parsedContent) {
+          this.parsedContent = result.data.parsedContent
+          console.log('✅ 解析内容已更新:', this.parsedContent)
+        } else {
+          throw new Error('解析结果格式异常')
+        }
+        
+      } catch (error) {
+        console.error('❌ 文件解析失败:', error)
+        
+        // 解析失败时显示错误信息和基本文件信息
+        this.parsedContent = {
+          rawText: `文件解析失败
+
+文件名: ${file.name}
+文件大小: ${this.formatFileSize(file.size)}
+文件类型: ${file.type}
+错误信息: ${error.message}
+
+建议:
+1. 检查文件格式是否正确（支持PDF、Word文档）
+2. 确保文件没有损坏
+3. 文件大小不超过10MB
+4. 如果问题持续，请联系技术支持
+
+注意: 即使解析失败，您仍然可以进行职位匹配分析，系统会基于文件基本信息进行分析。`,
+          personalInfo: {
+            name: '解析失败',
+            phone: '',
+            email: ''
+          },
+          skills: [],
+          experience: [],
+          education: [],
+          parseMethod: 'error'
+        }
+      }
+    },
+    
+    async startAnalysis() {
+      // 检查分析模式
+      if (!this.evaluationMode) {
+        alert('请选择分析方式：选择已有简历或上传新文件')
+        return
+      }
+      
+      if (!this.jobInfo.title.trim() || !this.jobInfo.description.trim()) {
+        alert('请填写完整的职位信息')
+        return
+      }
+      
+      if (this.evaluationMode === 'select' && !this.selectedResume) {
+        alert('请选择一个简历进行分析')
+        return
+      }
+      
+      if (this.evaluationMode === 'upload' && !this.uploadedFile) {
+        alert('请上传简历文件')
+        return
+      }
+      
+      this.loading = true
+      
+      try {
+        const { aiAPI } = await import('@/services/api')
+        let result;
+        let resumeData;
+        
+        if (this.evaluationMode === 'select') {
+          // 分析已选择的简历
+          console.log('🎯 开始分析选中简历，ID:', this.selectedResume)
+          result = await aiAPI.analyzeJobMatching({
+            resumeId: this.selectedResume,
+            jobDescription: this.jobInfo.description,
+            jobTitle: this.jobInfo.title
+          })
+          resumeData = this.selectedResumeData
+        } else if (this.evaluationMode === 'upload') {
+          // 分析上传的文件
+          console.log('📁 开始分析上传文件:', this.uploadedFile.name)
+          
+          // 如果还没有解析内容，先解析文件
+          if (!this.parsedContent) {
+            console.log('⏳ 文件尚未解析，先进行解析...')
+            await this.parseUploadedFile(this.uploadedFile)
+          }
+          
+          // 创建临时简历对象用于分析
+          const tempResume = {
+            title: this.parsedContent?.title || this.uploadedFile.name,
+            personalInfo: this.parsedContent?.personalInfo || {},
+            jobIntention: this.parsedContent?.jobIntention || {},
+            education: this.parsedContent?.education || [],
+            experience: this.parsedContent?.experience || [],
+            skills: this.parsedContent?.skills || [],
+            projects: this.parsedContent?.projects || [],
+            rawText: this.parsedContent?.rawText || ''
+          }
+          
+          // 通过API调用进行分析（模拟后端处理）
+          // 由于是上传文件模式，我们需要创建一个临时的分析请求
+          // 这里我们直接构造分析结果，实际项目中应该通过专门的API
+          result = {
+            success: true,
+            data: await this.analyzeUploadedResume(tempResume, this.jobInfo.description, this.jobInfo.title)
+          }
+          
+          resumeData = {
+            title: tempResume.title,
+            personalInfo: tempResume.personalInfo,
+            source: 'upload'
+          }
+        }
+        
+        console.log('✅ 职位匹配分析完成:', result)
+        
+        if (!result || !result.data) {
+          throw new Error('分析结果为空，请重试')
+        }
+        
+        // 保存分析数据到localStorage，供结果页面使用
+        const analysisData = {
+          jobInfo: this.jobInfo,
+          resumeData: resumeData,
+          analysisMode: this.evaluationMode,
+          sourceInfo: this.evaluationMode === 'select' 
+            ? { type: 'database', resumeId: this.selectedResume }
+            : { type: 'upload', fileName: this.uploadedFile.name, fileSize: this.uploadedFile.size },
+          ...result.data,
+          timestamp: new Date().toISOString()
+        }
+        
+        localStorage.setItem('matchingAnalysisData', JSON.stringify(analysisData))
+        
+        // 保存当前简历ID，用于保存结果功能
+        if (this.evaluationMode === 'select' && this.selectedResume) {
+          localStorage.setItem('currentMatchingResumeId', this.selectedResume)
+        } else {
+          // 上传文件模式，清除简历ID
+          localStorage.removeItem('currentMatchingResumeId')
+        }
+        
+        // 跳转到匹配结果页面
+        this.$router.push('/matching-result')
+        
+      } catch (error) {
+        console.error('❌ 职位匹配分析失败:', error)
+        
+        let errorMessage = '分析失败，请重试'
+        
+        if (error.message.includes('token') || error.message.includes('认证')) {
+          errorMessage = '登录已过期，请重新登录'
+          this.$router.push('/login')
+        } else if (error.message.includes('网络')) {
+          errorMessage = '网络连接失败，请检查网络后重试'
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+        
+        alert(errorMessage)
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+}
+</script>
+
+<style scoped>
+.job-matching-container {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  padding-bottom: 120px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: transparent;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #333;
+  padding: 8px;
+  margin-right: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.content {
+  padding: 20px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+
+/* 职位名称输入样式 */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.input-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.job-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #e1e5e9;
+  border-radius: 20px;
+  font-size: 14px;
+  background: white;
+  outline: none;
+}
+
+.job-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 职位描述输入样式 */
+.job-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  font-size: 14px;
+  background: white;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+}
+
+.job-textarea:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 选择简历样式 */
+.select-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.select-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.select-dropdown {
+  position: relative;
+}
+
+.resume-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 10px 32px 10px 12px;
+  font-size: 14px;
+  color: #333 !important;
+  cursor: pointer;
+  min-width: 140px;
+  font-family: inherit;
+  line-height: 1.4;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 8px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+}
+
+.resume-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.resume-select option {
+  color: #333;
+  background: white;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+/* 简历预览卡片样式 */
+.selected-resume-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.resume-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.resume-icon {
+  width: 48px;
+  height: 48px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  color: #667eea;
+}
+
+.resume-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.resume-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.info-row .label {
+  font-weight: 500;
+  color: #333;
+}
+
+.info-row .value {
+  color: #666;
+}
+
+.info-row svg {
+  color: #999;
+  flex-shrink: 0;
+}
+
+/* 上传简历样式 */
+.upload-card {
+  background: white;
+  border: 2px dashed #e1e5e9;
+  border-radius: 16px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-card:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.upload-icon {
+  color: #999;
+  margin-bottom: 16px;
+}
+
+.upload-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.upload-desc {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 分析按钮样式 */
+.analysis-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+}
+
+.analysis-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+}
+
+.analysis-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 模式指示样式 */
+.mode-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.mode-badge.active {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.mode-badge.disabled {
+  background: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ff9800;
+}
+
+/* 禁用状态样式 */
+.upload-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
+.upload-card.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e1e5e9;
+}
+
+.resume-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
+/* 区块头部样式 */
+.section-header {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+}
+
+/* 上传文件显示样式 */
+.uploaded-file {
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.file-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #666;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.remove-btn:hover {
+  background: #f8f9fa;
+  color: #666;
+}
+
+/* 解析内容显示样式 */
+.parsed-content-section {
+  margin-top: 24px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.parsed-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+
+.parsed-text-container {
+  margin-bottom: 20px;
+}
+
+.parsed-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.parsed-text-area {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background: #fff;
+  color: #333;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.parsed-text-area:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.parsed-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.info-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.info-card h5 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.info-content p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.info-content p:last-child {
+  margin-bottom: 0;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-tag {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.more-skills, .more-items {
+  color: #666;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* 当前选择状态样式 */
+.current-selection {
+  margin-bottom: 16px;
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.selection-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.selection-details {
+  flex: 1;
+}
+
+.selection-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 2px;
+}
+
+.selection-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.reset-btn {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+/* 分析提示样式 */
+.analysis-hint {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #e3f2fd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border-left: 4px solid #2196f3;
+}
+
+.hint-icon {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.hint-text {
+  flex: 1;
+  font-size: 14px;
+  color: #1565c0;
+  line-height: 1.4;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .input-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .input-label {
+    min-width: auto;
+  }
+  
+  .select-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .resume-select {
+    width: 100%;
+  }
+}
+</style>
+
+
+

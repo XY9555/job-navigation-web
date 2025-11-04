@@ -1,0 +1,14 @@
+# 图片占位文件
+
+这个目录用于存放应用的图片资源。
+
+在实际项目中，您需要添加以下图片：
+- bg-home.jpg - 首页背景图
+- bg-login.jpg - 登录页背景图  
+- bg-profile.jpg - 个人中心背景图
+- default-avatar.jpg - 默认头像
+- template-1.jpg - 简历模板1预览图
+- template-2.jpg - 简历模板2预览图
+- template-3.jpg - 简历模板3预览图
+
+
